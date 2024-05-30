@@ -4,6 +4,7 @@
 // that can be found in the LICENSE file in the root of the source
 // tree.
 
+//go:build linux
 // +build linux
 
 // Package afpacket provides Go bindings for MMap'd AF_PACKET socket reading.
@@ -268,6 +269,11 @@ func (h *TPacket) SetBPF(filter []bpf.RawInstruction) error {
 	return unix.SetsockoptSockFprog(h.fd, unix.SOL_SOCKET, unix.SO_ATTACH_FILTER, &p)
 }
 
+// attach ebpf filter to af-packet
+func (h *TPacket) SetEBPF(progFd int32) error {
+	return unix.SetsockoptInt(h.fd, unix.SOL_SOCKET, unix.SO_ATTACH_BPF, int(progFd))
+}
+
 func (h *TPacket) releaseCurrentPacket() error {
 	h.current.clearStatus()
 	h.offset++
@@ -282,10 +288,11 @@ func (h *TPacket) releaseCurrentPacket() error {
 // to old bytes when using ZeroCopyReadPacketData... if you need to keep data past
 // the next time you call ZeroCopyReadPacketData, use ReadPacketData, which copies
 // the bytes into a new buffer for you.
-//  tp, _ := NewTPacket(...)
-//  data1, _, _ := tp.ZeroCopyReadPacketData()
-//  // do everything you want with data1 here, copying bytes out of it if you'd like to keep them around.
-//  data2, _, _ := tp.ZeroCopyReadPacketData()  // invalidates bytes in data1
+//
+//	tp, _ := NewTPacket(...)
+//	data1, _, _ := tp.ZeroCopyReadPacketData()
+//	// do everything you want with data1 here, copying bytes out of it if you'd like to keep them around.
+//	data2, _, _ := tp.ZeroCopyReadPacketData()  // invalidates bytes in data1
 func (h *TPacket) ZeroCopyReadPacketData() (data []byte, ci gopacket.CaptureInfo, err error) {
 	h.mu.Lock()
 retry:
